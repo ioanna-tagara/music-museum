@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Κουίζ Μουσικού Μουσείου</title>
+<style>
+  body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: #0c0f1a;
+    color: #eaf4ff;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(90deg, #0a162a, #112940);
+    width: 100%;
+    padding: 12px 24px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.7);
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #9fb0c8;
+  }
+  main {
+    flex: 1;
+    max-width: 700px;
+    width: 90%;
+    margin-top: 24px;
+    background: linear-gradient(180deg, #071225, #071427);
+    padding: 20px 28px;
+    border-radius: 10px;
+    box-shadow: 0 20px 44px rgba(0,0,0,0.7);
+  }
+  h2 {
+    color: #8b6cff;
+    margin-bottom: 20px;
+    text-align: center;
+    font-family: "Courier New", monospace;
+  }
+  .question {
+    margin-bottom: 18px;
+    font-size: 1.1rem;
+  }
+  .answers {
+    list-style: none;
+    padding-left: 0;
+  }
+  .answers li {
+    margin-bottom: 10px;
+  }
+  .answers label {
+    cursor: pointer;
+  }
+  button {
+    background: #8b6cff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    color: #eaf4ff;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+  }
+  button:disabled {
+    background: #555a88;
+    cursor: not-allowed;
+  }
+  .results {
+    margin-top: 20px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  .answer-correct {
+    color: #4caf50;
+    font-weight: 700;
+  }
+  .answer-wrong {
+    color: #f44336;
+    font-weight: 700;
+  }
+  .feedback {
+    font-size: 0.95rem;
+    margin-top: 6px;
+    color: #9fb0c8;
+    font-style: italic;
+  }
+  nav {
+    margin-top: 12px;
+    text-align: center;
+  }
+  nav a {
+    color: #9fb0c8;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  nav a:hover {
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+
+<header>Κουίζ Μουσικού Μουσείου</header>
+
+<main>
+  <h2 id="questionTitle">Ερώτηση 1</h2>
+  <div class="question" id="questionText">Φόρτωση ερώτησης...</div>
+  <ul class="answers" id="answersList"></ul>
+  <button id="submitBtn" disabled>Υποβολή</button>
+  <div class="results" id="results" style="display:none"></div>
+</main>
+
+<nav>
+  <a href="index.html">🏛️ Επιστροφή στο Μουσείο</a>
+</nav>
+
+<script>
+  const quizQuestions = [
+    {
+      artist: "Jimi Hendrix",
+      question: "Ποιο είναι το πιο γνωστό τραγούδι του Jimi Hendrix που αναφέρεται σε ψευδαισθήσεις και ψυχαγωγικές ουσίες;",
+      choices: [
+        "Purple Haze",
+        "Little Wing",
+        "All Along the Watchtower",
+        "Voodoo Child"
+      ],
+      answer: 0,
+      feedback: "Το 'Purple Haze' θεωρείται ένα από τα πιο διάσημα τραγούδια του Hendrix και αναφέρεται σε ψευδαισθήσεις."
+    },
+    {
+      artist: "The Beatles",
+      question: "Ποιο άλμπουμ των Beatles θεωρείται το πρώτο concept album της ιστορίας;",
+      choices: [
+        "Abbey Road",
+        "Sgt. Pepper's Lonely Hearts Club Band",
+        "Revolver",
+        "Rubber Soul"
+      ],
+      answer: 1,
+      feedback: "Το 'Sgt. Pepper's Lonely Hearts Club Band' είναι ευρέως αναγνωρισμένο ως το πρώτο concept album."
+    },
+    {
+      artist: "Queen",
+      question: "Ποιο τραγούδι των Queen είναι γνωστό για το πολυφωνικό φωνητικό του στυλ και έγινε ύμνος για το ποδόσφαιρο;",
+      choices: [
+        "We Will Rock You",
+        "Bohemian Rhapsody",
+        "Somebody to Love",
+        "Another One Bites the Dust"
+      ],
+      answer: 0,
+      feedback: "Το 'We Will Rock You' έχει χαρακτηριστικό ρυθμό και χρησιμοποιείται συχνά σε αθλητικές εκδηλώσεις."
+    },
+    {
+      artist: "Miles Davis",
+      question: "Ποιο άλμπουμ του Miles Davis θεωρείται ορόσημο της jazz fusion;",
+      choices: [
+        "Kind of Blue",
+        "Bitches Brew",
+        "Sketches of Spain",
+        "Miles Ahead"
+      ],
+      answer: 1,
+      feedback: "Το 'Bitches Brew' σηματοδότησε τη μετάβαση στην jazz fusion."
+    },
+    {
+      artist: "John Coltrane",
+      question: "Ποιο είναι το πιο διάσημο κομμάτι του John Coltrane που βασίζεται σε μια 12-μερη blues φόρμα;",
+      choices: [
+        "A Love Supreme",
+        "Giant Steps",
+        "Naima",
+        "Blue Train"
+      ],
+      answer: 3,
+      feedback: "'Blue Train' είναι ένα από τα πιο γνωστά blues κομμάτια του Coltrane."
+    },
+    {
+      artist: "Ella Fitzgerald",
+      question: "Ποιο ήταν το παρατσούκλι της Ella Fitzgerald που αντανακλά την τεχνική της και φωνητική ευελιξία;",
+      choices: [
+        "The First Lady of Song",
+        "Lady Day",
+        "Queen of Jazz",
+        "The Empress of Blues"
+      ],
+      answer: 0,
+      feedback: "Η Ella Fitzgerald αποκαλείται συχνά 'The First Lady of Song'."
+    },
+    {
+      artist: "Tupac Shakur",
+      question: "Ποιο θέμα είναι κεντρικό στα τραγούδια του Tupac;",
+      choices: [
+        "Η αγάπη και οι σχέσεις",
+        "Η φτώχεια και οι κοινωνικές ανισότητες",
+        "Η επιστήμη και η τεχνολογία",
+        "Η φαντασία και η επιστημονική φαντασία"
+      ],
+      answer: 1,
+      feedback: "Ο Tupac ασχολήθηκε συχνά με κοινωνικά ζητήματα όπως η φτώχεια και η ανισότητα."
+    },
+    {
+      artist: "The Notorious B.I.G.",
+      question: "Ποιο είναι το πραγματικό όνομα του Biggie;",
+      choices: [
+        "Christopher Wallace",
+        "Sean Carter",
+        "Tupac Shakur",
+        "Marshall Mathers"
+      ],
+      answer: 0,
+      feedback: "Το πραγματικό όνομα του Biggie ήταν Christopher Wallace."
+    },
+    {
+      artist: "Missy Elliott",
+      question: "Ποια από τις παρακάτω δεξιότητες ΔΕΝ είναι γνωστή ως το κύριο χαρακτηριστικό της Missy Elliott;",
+      choices: [
+        "Ραπ",
+        "Χορός",
+        "Ζωγραφική",
+        "Παραγωγή μουσικής"
+      ],
+      answer: 2,
+      feedback: "Η ζωγραφική δεν είναι από τα κύρια ταλέντα της Missy Elliott."
+    }
+  ];
+
+  let currentQuestionIndex = 0;
+  let score = 0;
+  let answered = false;
+
+  const questionTitle = document.getElementById("questionTitle");
+  const questionText = document.getElementById("questionText");
+  const answersList = document.getElementById("answersList");
+  const submitBtn = document.getElementById("submitBtn");
+  const resultsDiv = document.getElementById("results");
+
+  function loadQuestion(){
+    answered = false;
+    submitBtn.disabled = true;
+    resultsDiv.style.display = "none";
+    questionText.style.display = "block";
+    answersList.style.display = "block";
+    submitBtn.style.display = "block";
+
+    const q = quizQuestions[currentQuestionIndex];
+    questionTitle.textContent = `Ερώτηση ${currentQuestionIndex + 1} από ${quizQuestions.length}`;
+    questionText.textContent = q.question;
+    answersList.innerHTML = "";
+    q.choices.forEach((choice, i) => {
+      const li = document.createElement("li");
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "answer";
+      input.value = i;
+      input.addEventListener("change", () => submitBtn.disabled = false);
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(" " + choice));
+      li.appendChild(label);
+      answersList.appendChild(li);
+    });
+  }
+
+  function showResults(){
+    const q = quizQuestions[currentQuestionIndex];
+    const selected = document.querySelector('input[name="answer"]:checked');
+    if(!selected) return;
+
+    const answerIndex = parseInt(selected.value, 10);
+    answered = true;
+
+    // Χρωματισμός απαντήσεων & απενεργοποίηση
+    document.querySelectorAll('input[name="answer"]').forEach(input => {
+      input.disabled = true;
+      const li = input.parentElement;
+      li.style.color = "";
+      if(parseInt(input.value, 10) === q.answer){
+        li.style.color = "#4caf50"; // πράσινο σωστή απάντηση
+      }
+      if(input.checked && parseInt(input.value, 10) !== q.answer){
+        li.style.color = "#f44336"; // κόκκινο λάθος απάντηση
+      }
+    });
+
+    let feedbackText = "";
+    if(answerIndex === q.answer){
+      score++;
+      feedbackText = `<div class="answer-correct">Σωστό! ✅</div><div class="feedback">${q.feedback}</div>`;
+    } else {
+      feedbackText = `<div class="answer-wrong">Λάθος ❌</div><div class="feedback">Σωστή απάντηση: <strong>${q.choices[q.answer]}</strong><br>${q.feedback}</div>`;
+    }
+
+    resultsDiv.innerHTML = feedbackText;
+    resultsDiv.style.display = "block";
+    submitBtn.textContent = (currentQuestionIndex === quizQuestions.length -1) ? "Τέλος Κουίζ" : "Επόμενη Ερώτηση";
+  }
+
+  submitBtn.addEventListener("click", () => {
+    if(!answered){
+      showResults();
+    } else {
+      currentQuestionIndex++;
+      if(currentQuestionIndex >= quizQuestions.length){
+        showFinalScore();
+      } else {
+        loadQuestion();
+        submitBtn.textContent = "Υποβολή";
+      }
+    }
+  });
+
+  function showFinalScore(){
+    questionTitle.textContent = "Τέλος Κουίζ";
+    questionText.style.display = "none";
+    answersList.style.display = "none";
+    submitBtn.style.display = "none";
+    resultsDiv.style.display = "block";
+    resultsDiv.innerHTML = `<div>Συνολική βαθμολογία: <strong>${score} / ${quizQuestions.length}</strong></div>
+      <div style="margin-top:10px;">Ευχαριστούμε που παίξατε το κουίζ!</div>
+      <div style="margin-top:20px;">
+        <button id="restartBtn">Ξεκίνημα από την αρχή</button>
+      </div>
+      <div style="margin-top:12px;"><a href="index.html" style="color:#8b6cff;">🏛️ Επιστροφή στο Μουσείο</a></div>`;
+
+    document.getElementById("restartBtn").addEventListener("click", () => {
+      currentQuestionIndex = 0;
+      score = 0;
+      loadQuestion();
+      resultsDiv.style.display = "none";
+      questionText.style.display = "block";
+      answersList.style.display = "block";
+      submitBtn.style.display = "block";
+      submitBtn.textContent = "Υποβολή";
+    });
+  }
+
+  loadQuestion();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Music Museum — Main (Halls)</title>
+<style>
+  :root{--bg:#0c0f1a;--muted:#9fb0c8}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#eaf4ff}
+  
+  /* Menu Bar */
+  #menuBar {
+    background: linear-gradient(90deg, #0a162a, #112940);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  #menuBar a {
+    color: #9fb0c8;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+  }
+  #menuBar a:hover, #menuBar a:focus {
+    color: #fff;
+    outline: none;
+  }
+
+  #wrap{display:flex;gap:12px;padding:12px;align-items:flex-start}
+  canvas{background:#0b1020;border-radius:8px;image-rendering:pixelated;box-shadow:0 12px 30px rgba(0,0,0,0.6)}
+  #ui{width:360px;padding:12px;background:linear-gradient(180deg,#071225,#071427);border-radius:8px;border:1px solid rgba(255,255,255,0.03)}
+  h1{font-size:18px;margin:0 0 6px}
+  .muted{color:var(--muted);font-size:13px}
+  .keys{margin-top:8px}
+  .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(180deg,#071427,#0a1a2a);padding:14px;border-radius:10px;display:none;max-width:760px;width:92%;box-shadow:0 20px 44px rgba(0,0,0,0.7)}
+  .modal.visible{display:block}
+  .modal img{width:140px;height:140px;object-fit:cover;border-radius:6px}
+  .modal .row{display:flex;gap:12px;align-items:center}
+  footer{margin-top:10px;color:var(--muted);font-size:13px}
+  ul{padding-left:16px;margin:6px 0}
+  ul li a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  ul li a:hover, ul li a:focus {
+    color: #fff;
+  }
+  @media (max-width:980px){#wrap{flex-direction:column;align-items:center}#ui{width:92%}}
+</style>
+</head>
+<body>
+
+<!-- MENU BAR -->
+<div id="menuBar" role="navigation" aria-label="Main menu">
+  <a href="index.html" tabindex="0">🏛️ Museum Halls</a>
+  <a href="quiz.html" tabindex="0">❓ Take the Quiz</a>
+</div>
+
+<div id="wrap">
+  <canvas id="game" width="960" height="540" tabindex="0"></canvas>
+
+  <div id="ui">
+    <h1>🎵 Music Museum — Halls</h1>
+    <div class="muted small">Walk between rooms, interact with invisible doors & exhibits.</div>
+
+    <div style="margin-top:10px"><strong>Controls</strong>
+      <div class="keys muted small">A / ← = left • D / → = right • Space = jump • E = interact</div>
+    </div>
+
+    <div style="margin-top:12px"><strong>Current Room:</strong> <span id="roomLabel">-</span></div>
+    <div style="margin-top:8px"><strong>Rooms</strong>
+      <ul id="roomList" class="muted small"></ul>
+    </div>
+
+    <footer>Artist rooms load as separate pages. Use return door to go back.</footer>
+  </div>
+</div>
+
+<div id="infoModal" class="modal" role="dialog" aria-hidden="true">
+  <div id="modalInner"></div>
+  <div style="text-align:right;margin-top:10px"><button id="closeModal">Close</button></div>
+</div>
+
+<script>
+/* ------------------------
+   Setup & Constants
+-------------------------*/
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+const W = canvas.width, H = canvas.height;
+canvas.focus();
+canvas.addEventListener("click", ()=>canvas.focus());
+
+function platform(x,y,w){ return {x,y,w,h:16}; }
+
+/* ------------------------
+   Halls data, doors, exhibits, transitions
+-------------------------*/
+
+const HALLS = [
+  { id:"lobby", label:"Lobby", width:960, color:"#17202a", background:"assets/images/lobby.png", platforms:[platform(0,480,960)], exhibits:[], transitions:{ right:"rock_doors" } },
+
+  { id:"rock_doors", label:"Rock Doors", width:960, color:"#1a0f0f", background:"assets/images/rock_doors.png",
+    platforms:[platform(0,480,960)],
+    exhibits:[
+      {name:"Beatles Door", x:150, y:300, w:120, h:160, isDoor:true, targetRoom:"beatles_room"},
+      {name:"Jimi Hendrix", x:450, y:300, w:120, h:160, isDoor:true, targetRoom:"jimi_room"},
+      {name:"Queen", x:750, y:300, w:120, h:160, isDoor:true, targetRoom:"queen_room"}
+    ],
+    transitions:{ left:"lobby", right:"jazz_doors" }
+  },
+
+  { id:"jazz_doors", label:"Jazz Doors", width:960, color:"#111926", background:"assets/images/jazz_doors.png",
+    platforms:[platform(0,480,960)],
+    exhibits:[
+      {name:"Miles Door", x:150,y:300,w:120,h:160, isDoor:true, targetRoom:"miles_room"},
+      {name:"John Coltrane", x:450,y:300,w:120,h:160, isDoor:true, targetRoom:"coltrane_room"},
+      {name:"Ella Fitzgerald", x:750, y:300, w:120, h:160, isDoor:true, targetRoom:"ella_room"}
+    ],
+    transitions:{ left:"rock_doors", right:"hiphop_doors" }
+  },
+
+  { id:"hiphop_doors", label:"Hip-Hop Doors", width:960, color:"#111114", background:"assets/images/hiphop_doors.png",
+    platforms:[platform(0,480,960)],
+    exhibits:[
+      {name:"Tupac Door", x:150,y:300,w:120,h:160, isDoor:true, targetRoom:"tupac_room"},
+      {name:"B.I.G. Door", x:450,y:300,w:120,h:160, isDoor:true, targetRoom:"big_room"},
+      {name:"Missy Elliott Door", x:750, y:300, w:120, h:160, isDoor:true, targetRoom:"missy_room"}
+    ],
+    transitions:{ left:"jazz_doors" }
+  }
+];
+
+/* ------------------------
+   Player + animation (scaled)
+-------------------------*/
+const SPRITE_FRAME_W = 1400;
+const SPRITE_FRAME_H = 1400;
+const PLAYER_W = 250;
+const PLAYER_H = 250;
+
+const player = {
+  x:80, y:520,
+  w:PLAYER_W, h:PLAYER_H,
+  vx:0, vy:0,
+  speed:3.4, jump:9, onGround:true,
+  anim:"idle", frame:0, frameTimer:0, frameSpeed:6000, facing:1
+};
+
+const animImages = {
+  idle:new Image(),
+  walk:[ new Image(), new Image() ],
+  jump:new Image()
+};
+animImages.idle.src = "assets/sprites/player_idle.png";
+animImages.walk[0].src = "assets/sprites/player_walk1.png";
+animImages.walk[1].src = "assets/sprites/player_walk2.png";
+animImages.jump.src = "assets/sprites/player_jump.png";
+
+/* ------------------------
+   State
+-------------------------*/
+let halls = HALLS;
+let levelIndex = 0;
+let currentLevel = halls[levelIndex];
+let cameraX = 0;
+let nearbyExhibit = null;
+const GRAV = 0.36;
+const GROUND_Y = 520;
+
+/* ------------------------
+   Helpers & input
+-------------------------*/
+const keys = {};
+addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+function getImage(src){
+  if(!getImage.cache) getImage.cache = {};
+  if(!src) return {complete:false,naturalWidth:0};
+  if(getImage.cache[src]) return getImage.cache[src];
+  const i = new Image(); i.src=src; getImage.cache[src]=i; return i;
+}
+
+/* ------------------------
+   Query param: ?start=roomId
+-------------------------*/
+function parseQuery(){
+  const q = new URLSearchParams(location.search);
+  return q.get("start");
+}
+const startParam = parseQuery();
+if(startParam){
+  const idx = halls.findIndex(h=>h.id===startParam);
+  if(idx!==-1){ levelIndex = idx; currentLevel = halls[levelIndex]; }
+}
+
+/* ------------------------
+   Interaction: When a door leads to an artist room, navigate to that artist HTML:
+   rooms/<id>.html?from=<currentHallId>
+-------------------------*/
+
+const ARTIST_IDS = new Set([
+  "beatles_room","queen_room","jimi_room","miles_room","coltrane_room","ella_room","tupac_room","big_room","missy_room"
+]);
+
+function navigateToArtist(roomId){
+  const from = currentLevel.id || "lobby";
+  window.location.href = `rooms/${roomId}.html?from=${encodeURIComponent(from)}`;
+}
+
+/* ------------------------
+   find nearby exhibit (hitbox)
+-------------------------*/
+function findNearbyExhibit(){
+  const L = currentLevel;
+  if(!L || !L.exhibits) return null;
+  for(const ex of L.exhibits){
+    const exW = ex.w || 80, exH = ex.h || 100;
+    const px = player.x + player.w/2;
+    const exx = ex.x + exW/2;
+    const py = player.y - player.h/2;
+    const exy = ex.y + exH/2;
+    if(Math.abs(px-exx) < 96 && Math.abs(py-exy) < 90) return ex;
+  }
+  return null;
+}
+
+/* ------------------------
+   Interact: E key
+   If door -> navigate to artist HTML or switch hall
+-------------------------*/
+
+function interactWithExhibit(ex){
+  if(!ex) return;
+  if(ex.isDoor && ex.targetRoom){
+    if(ARTIST_IDS.has(ex.targetRoom)){
+      navigateToArtist(ex.targetRoom);
+      return;
+    }
+    const idx = halls.findIndex(h=>h.id===ex.targetRoom);
+    if(idx !== -1){
+      levelIndex = idx;
+      currentLevel = halls[levelIndex];
+      player.x = 50;
+      player.y = GROUND_Y;
+      updateUI();
+      return;
+    }
+  }
+
+  if(ex.img || ex.description){
+    const html = `
+      <div class="row" style="display:flex;gap:12px;align-items:center">
+        ${ex.img ? `<img src="${ex.img}" style="width:140px;height:140px;object-fit:cover;border-radius:6px">` : ""}
+        <div>
+          <h2 style="margin:0">${ex.name||"Exhibit"}</h2>
+          <p style="color:#9fb0c8;margin:6px 0 0">${ex.description||""}</p>
+        </div>
+      </div>
+    `;
+    document.getElementById("modalInner").innerHTML = html;
+    document.getElementById("infoModal").classList.add("visible");
+  }
+}
+
+/* ------------------------
+   Update loop
+-------------------------*/
+
+function update(dt){
+  const L = currentLevel;
+  if(!L) return;
+
+  let move = 0;
+  if(keys["a"]||keys["arrowleft"]) move = -1;
+  if(keys["d"]||keys["arrowright"]) move = 1;
+  player.vx = move * player.speed;
+  player.x += player.vx * dt;
+
+  if(player.vx > 0) player.facing = 1;
+  else if(player.vx < 0) player.facing = -1;
+
+  if(!player.onGround){
+    player.vy += GRAV;
+    player.y += player.vy * dt;
+    if(player.y >= GROUND_Y){ player.y = GROUND_Y; player.vy = 0; player.onGround = true; }
+  }
+
+  if((keys[" "]||keys["space"]) && player.onGround){
+    player.onGround = false; player.vy = -player.jump;
+  }
+
+  if(player.x + player.w < 0){
+    const to = L.transitions?.left;
+    if(to){
+      const idx = halls.findIndex(h=>h.id===to);
+      if(idx !== -1){ levelIndex = idx; currentLevel = halls[levelIndex]; player.x = currentLevel.width - player.w - 10; updateUI(); }
+    } else player.x = 0;
+  } else if(player.x > L.width){
+    const to = L.transitions?.right;
+    if(to){
+      const idx = halls.findIndex(h=>h.id===to);
+      if(idx !== -1){ levelIndex = idx; currentLevel = halls[levelIndex]; player.x = 10; updateUI(); }
+    } else player.x = L.width - player.w;
+  }
+
+  nearbyExhibit = findNearbyExhibit();
+
+  // Υποστήριξη ελληνικού πληκτρολογίου στο E/ε
+  if((keys["e"] || keys["ε"] || keys["Ε"] || keys["E"]) && nearbyExhibit){
+    keys["e"] = false;
+    keys["ε"] = false;
+	keys["Ε"] = false;
+	keys["E"] = false;
+    interactWithExhibit(nearbyExhibit);
+  }
+
+  // animation
+  if(!player.onGround) player.anim = "jump";
+  else if(player.vx !== 0) player.anim = "walk";
+  else player.anim = "idle";
+
+  if(player.anim === "walk"){
+    player.frameTimer += dt*1000;
+    if(player.frameTimer >= player.frameSpeed){ player.frameTimer = 0; player.frame = (player.frame+1)%2; }
+  } else { player.frame = 0; player.frameTimer = 0; }
+}
+
+/* ------------------------
+   Drawing
+-------------------------*/
+function draw(){
+  const L = currentLevel;
+  const bg = getImage(L.background);
+  if(bg.complete && bg.naturalWidth > 0) ctx.drawImage(bg, 0, 0, W, H);
+  else { ctx.fillStyle = L.color; ctx.fillRect(0,0,W,H); }
+
+  for(const ex of L.exhibits || []){
+    if(ex.isDoor) continue;
+    const x = Math.floor(ex.x);
+    const y = ex.y;
+    if(ex.img){
+      const im = getImage(ex.img);
+      if(im.complete && im.naturalWidth > 0) ctx.drawImage(im, x, y, ex.w, ex.h);
+    }
+    if(ex.name){
+      ctx.fillStyle = "#fff";
+      ctx.font = "12px monospace";
+      ctx.fillText(ex.name, x, y + (ex.h||100) + 14);
+    }
+  }
+
+  drawPlayer(Math.floor(player.x), Math.floor(player.y));
+
+  if(nearbyExhibit){
+    const x = nearbyExhibit.x + (nearbyExhibit.w || 80)/2;
+    const y = nearbyExhibit.y - 20;
+    ctx.font = "20px monospace";
+    ctx.fillStyle = "#ffd36a";
+    ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,0.8)";
+    ctx.shadowBlur = 6;
+    ctx.fillText("🅔 Πάτα E", x, y);
+    ctx.shadowBlur = 0;
+    ctx.textAlign = "left";
+  }
+}
+
+/* ------------------------
+   Player draw helper
+-------------------------*/
+function drawPlayer(x,y){
+  ctx.save();
+  if(player.facing === -1){
+    ctx.translate(x + player.w/2, 0);
+    ctx.scale(-1,1);
+    ctx.translate(-(x + player.w/2), 0);
+  }
+  const img = player.anim === "walk" ? animImages.walk[player.frame]
+            : player.anim === "jump" ? animImages.jump
+            : animImages.idle;
+  ctx.drawImage(img, 0, 0, SPRITE_FRAME_W, SPRITE_FRAME_H, x, y - player.h, player.w, player.h);
+  ctx.restore();
+}
+
+/* ------------------------
+   UI update
+-------------------------*/
+function updateUI(){
+  document.getElementById("roomLabel").textContent = currentLevel.label;
+  const ul = document.getElementById("roomList");
+  ul.innerHTML = "";
+  for(const h of halls){
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = `?start=${h.id}`;
+    a.textContent = h.label;
+    li.appendChild(a);
+    ul.appendChild(li);
+  }
+}
+
+/* ------------------------
+   Loop
+-------------------------*/
+let last = performance.now();
+function loop(t){
+  const dt = (t-last)/16.6; last = t;
+  update(dt);
+  const L = currentLevel;
+  const centerX = player.x + player.w/2;
+  const cameraX = Math.min(Math.max(centerX - W/2, 0), L.width - W);
+  ctx.clearRect(0,0,W,H);
+  ctx.save();
+  ctx.translate(-cameraX, 0);
+  draw();
+  ctx.restore();
+  requestAnimationFrame(loop);
+}
+updateUI();
+requestAnimationFrame(loop);
+
+/* ------------------------
+   Modal close button
+-------------------------*/
+document.getElementById("closeModal").addEventListener("click", () => {
+  document.getElementById("infoModal").classList.remove("visible");
+});
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>John Coltrane Room</title>
+
+<style>
+:root{
+  --bg:#1e1b29;
+  --panel:#332f47;
+  --muted:#9b90c7;
+  --accent:#7d6bce;
+  --text:#ded9f0;
+  --shadow:rgba(0,0,0,0.65);
+}
+html,body{
+  height:100%;margin:0;
+  font-family: Georgia, serif;
+  background:var(--bg);
+  color:var(--text);
+}
+#wrap{
+  display:flex;
+  gap:12px;
+  padding:12px;
+}
+canvas{
+  background:var(--panel);
+  border-radius:10px;
+  image-rendering:pixelated;
+  box-shadow:0 0 15px var(--shadow);
+  border:2px solid var(--accent);
+}
+#ui{
+  width:320px;
+  padding:20px;
+  background:linear-gradient(180deg,#332f47,#1e1b29);
+  border-radius:10px;
+}
+#ui h2{
+  font-family:"Courier New",monospace;
+  color:var(--accent);
+  letter-spacing:2px;
+}
+#ui p{color:var(--muted)}
+
+.modal{
+  position:fixed; inset:0;
+  background:rgba(30,27,41,0.95);
+  display:none; align-items:center; justify-content:center;
+  z-index:10;
+}
+.modal.visible{display:flex}
+.modalBox{
+  width:620px; max-width:94%;
+  background:linear-gradient(180deg,#332f47,#1e1b29);
+  border:3px solid var(--accent);
+  border-radius:16px;
+  padding:24px;
+  box-shadow:0 20px 50px var(--shadow);
+}
+.modalBox h3{
+  margin-top:0;
+  font-family:"Courier New",monospace;
+  color:var(--accent);
+  letter-spacing:1px;
+}
+.modalBox button{
+  margin-top:14px;
+  padding:10px 20px;
+  background:var(--accent);
+  border:none;
+  border-radius:6px;
+  font-family:"Courier New",monospace;
+  cursor:pointer;
+}
+
+.playlist{margin-top:16px}
+.track{
+  margin-bottom:18px;
+  padding-bottom:10px;
+  border-bottom:1px solid rgba(125,107,206,.3);
+}
+.track-title{
+  font-family:"Courier New",monospace;
+  font-size:.9em;
+  letter-spacing:1px;
+  color:var(--muted);
+  margin-bottom:6px;
+  text-transform:uppercase;
+}
+.track audio{
+  width:100%;
+  filter:sepia(25%) brightness(95%);
+}
+</style>
+</head>
+
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="540"></canvas>
+  <div id="ui">
+    <h2>John Coltrane</h2>
+    <p>E = interact<br>ESC = exit room</p>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modalBox" id="modalBox"></div>
+</div>
+
+<script>
+/* ================= BASIC SETUP ================= */
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+ctx.imageSmoothingEnabled=false;
+
+const GRAV=0.36, GROUND_Y=520;
+
+/* ================= PLAYER ================= */
+const player={
+  x:80,y:GROUND_Y,w:250,h:250,
+  vx:0,vy:0,speed:3.4,jump:9,
+  onGround:true,facing:1,
+  anim:"idle",frame:0,frameTimer:0,frameSpeed:6
+};
+
+const SPRITE_FRAME_W=1400, SPRITE_FRAME_H=1400;
+const animImages={
+  idle:new Image(),
+  walk:[new Image(),new Image()],
+  jump:new Image()
+};
+animImages.idle.src="../assets/sprites/player_idle.png";
+animImages.walk[0].src="../assets/sprites/player_walk1.png";
+animImages.walk[1].src="../assets/sprites/player_walk2.png";
+animImages.jump.src="../assets/sprites/player_jump.png";
+
+/* ================= ROOM ================= */
+const ROOM={
+  background:"assets/images/coltrane_room.png",
+  exhibits:[
+    {x:140,y:300,w:140,h:200,type:"info"},
+    {x:460,y:300,w:120,h:160,type:"discography"},
+    {x:740,y:300,w:140,h:200,type:"playlist"}
+  ]
+};
+
+/* ================= INPUT ================= */
+const keys={};
+addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+/* ================= MODAL ================= */
+const modal=document.getElementById("modal");
+const modalBox=document.getElementById("modalBox");
+function openModal(html){modalBox.innerHTML=html;modal.classList.add("visible")}
+function closeModal(){modal.classList.remove("visible")}
+
+/* ===== PLAYLIST LOGIC ===== */
+function setupPlaylistControls(){
+  const audios=document.querySelectorAll(".playlist audio");
+  audios.forEach(a=>{
+    a.addEventListener("play",()=>{
+      audios.forEach(o=>{
+        if(o!==a){o.pause();o.currentTime=0;}
+      });
+    });
+  });
+}
+
+/* ================= INTERACTION ================= */
+function findNearby(){
+  for(const ex of ROOM.exhibits){
+    const px=player.x+player.w/2;
+    const py=player.y-player.h/2;
+    if(Math.abs(px-(ex.x+ex.w/2))<90 && Math.abs(py-(ex.y+ex.h/2))<90) return ex;
+  }
+  return null;
+}
+
+function interact(ex){
+  if(ex.type==="playlist"){
+    openModal(`
+      <h3>John Coltrane Playlist</h3>
+      <div class="playlist">
+        <div class="track">
+          <div class="track-title">Giant Steps</div>
+          <audio controls src="coltrane_giant_steps.mp3"></audio>
+        </div>
+        <div class="track">
+          <div class="track-title">A Love Supreme</div>
+          <audio controls src="coltrane_a_love_supreme.mp3"></audio>
+        </div>
+        <div class="track">
+          <div class="track-title">Naima</div>
+          <audio controls src="coltrane_naima.mp3"></audio>
+        </div>
+      </div>
+      <button onclick="closeModal()">Close</button>
+    `);
+    setTimeout(setupPlaylistControls,0);
+  } else if(ex.type==="info"){
+    openModal(`
+      <h3>John Coltrane</h3>
+      <p>
+        Ο John Coltrane (1926-1967) ήταν σαξοφωνίστας που πρωτοπόρησε στην τζαζ, ειδικά με το hard bop και modal jazz. Γνωστός για τις πνευματικές του αναζητήσεις, η μουσική του συνδύαζε τεχνική αρτιότητα και βαθύ συναίσθημα. Το έργο του άλλαξε τη φύση της τζαζ και επηρέασε πολλούς καλλιτέχνες.
+      </p>
+      <button onclick="closeModal()">Close</button>
+    `);
+  } else if(ex.type==="discography"){
+    openModal(`
+      <h3>Discography</h3>
+      <p>
+        Albums:
+        <ul>
+          <li>Giant Steps (1960): Καινοτόμο άλμπουμ με πολύπλοκες αρμονίες.</li>
+          <li>A Love Supreme (1965): Πνευματικό άλμπουμ που θεωρείται κορυφαίο έργο της τζαζ.</li>
+          <li>Blue Train (1957): Κλασικό hard bop άλμπουμ.</li>
+        </ul>
+      </p>
+      <button onclick="closeModal()">Close</button>
+    `);
+  }
+}
+
+/* ================= UPDATE ================= */
+function update(dt){
+  let move=0;
+  if(keys.a||keys.arrowleft) move=-1;
+  if(keys.d||keys.arrowright) move=1;
+  player.vx=move*player.speed;
+  player.x+=player.vx*dt;
+
+  if(!player.onGround){
+    player.vy+=GRAV; player.y+=player.vy*dt;
+    if(player.y>=GROUND_Y){player.y=GROUND_Y;player.vy=0;player.onGround=true;}
+  }
+  if((keys[" "]||keys.space)&&player.onGround){
+    player.onGround=false; player.vy=-player.jump;
+  }
+
+  if(!player.onGround) player.anim="jump";
+  else if(move) player.anim="walk";
+  else player.anim="idle";
+
+  if(player.anim==="walk"){
+    player.frameTimer+=dt;
+    if(player.frameTimer>=player.frameSpeed){
+      player.frameTimer=0;
+      player.frame=(player.frame+1)%2;
+    }
+  } else player.frame=0;
+
+  if(move) player.facing=move;
+
+  const near=findNearby();
+   if((keys["e"] || keys["ε"] || keys["Ε"] || keys["E"]) && near){
+    keys["e"] = false;
+    keys["ε"] = false;
+	keys["Ε"] = false;
+	keys["E"] = false;
+    interact(near);
+  }
+}
+
+/* ================= DRAW ================= */
+const bg=new Image(); bg.src=ROOM.background;
+function draw(){
+  if(bg.complete && bg.naturalWidth !== 0){
+    ctx.drawImage(bg,0,0,960,540);
+  } else {
+    ctx.fillStyle="#2d2a44";
+    ctx.fillRect(0,0,960,540);
+  }
+
+  const near=findNearby();
+  if(near){
+    ctx.font="24px monospace";
+    ctx.fillStyle="#a68eff";
+    ctx.textAlign="center";
+    ctx.shadowColor="rgba(0,0,0,.9)";
+    ctx.shadowBlur=8;
+    ctx.fillText("🅔 ΠΑΤΑ Ε",near.x+near.w/2,near.y-20);
+    ctx.shadowBlur=0;
+  }
+
+  ctx.save();
+  if(player.facing===-1){
+    ctx.translate(player.x+player.w/2,0);
+    ctx.scale(-1,1);
+    ctx.translate(-(player.x+player.w/2),0);
+  }
+
+  const img=player.anim==="walk"?animImages.walk[player.frame]:
+            player.anim==="jump"?animImages.jump:
+            animImages.idle;
+
+  if(img.complete && img.naturalWidth !== 0){
+    ctx.drawImage(img,0,0,SPRITE_FRAME_W,SPRITE_FRAME_H,
+      player.x,player.y-player.h,player.w,player.h);
+  } else {
+    ctx.fillStyle="purple";
+    ctx.fillRect(player.x,player.y-player.h,player.w,player.h);
+  }
+  ctx.restore();
+}
+
+/* ================= LOOP ================= */
+let last=performance.now();
+function loop(t){
+  const dt=(t-last)/16.6; last=t;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ================= EXIT ================= */
+addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    location.href="../index.html?start=jazz_doors&spawn=coltrane_room";
+  }
+});
+</script>
+</body>
+</html>
